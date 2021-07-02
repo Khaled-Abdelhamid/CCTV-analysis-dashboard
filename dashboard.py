@@ -2,7 +2,7 @@ import streamlit as st
 import glob
 import os
 import cv2
-
+from PIL import Image
 import pandas as pd
 from dataframeOptimizer import reduce_mem_usage
 
@@ -36,13 +36,18 @@ def load_data(file_name: str) -> pd.DataFrame:
 
 
 @st.cache(allow_output_mutation=True)
-def select_section(start: int, end: int, fps: int) -> pd.DataFrame:
-    return df.query(f"(frame>= {start*fps} and frame<={end*fps})")
+def select_section(start: int, end: int, fps: int, classes: list) -> pd.DataFrame:
+    return df.query(
+        f"(frame>= {start*fps} and frame<={end*fps} and object_class in {classes})"
+    )
 
 
 # fig.show()
 
-st.title("CCTV Analysis")
+# st.title("CCTV Analysis")
+st.markdown(
+    "<h1 style='text-align: center;'>CCTV Analysis</h1>", unsafe_allow_html=True,
+)
 
 csv_names = [os.path.basename(x).split(".")[0] for x in glob.glob("processed/*.csv")]
 csvs = glob.glob("processed/*.csv")
@@ -57,7 +62,7 @@ choice_video = st.sidebar.selectbox("Select Video:", videos)
 
 FRAME_WINDOW = st.image([])
 camera = cv2.VideoCapture(choice_video)
-preview = st.checkbox(f"Preview Video:{choice_video}")
+preview = st.checkbox(f"Preview Video: {choice_video}")
 while preview:
     _, frame = camera.read()
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -67,16 +72,19 @@ st.subheader(f"Running results for file {choice_csvs}")
 
 df = load_data(choice_csvs)
 counts = df["object_class"].value_counts()
-default_alphas = counts.apply(lambda x: 2 / log(x)).to_dict()
 
-if st.checkbox("Show Dataset"):
+# default_alphas = counts.apply(lambda x: 2 / log(x)).to_dict()
+
+# if st.checkbox("Show Dataset"):
+with st.beta_expander("Show Dataset"):
     st.write("### Enter the number of rows to view")
     rows = st.number_input("", min_value=0, value=5)
     if rows > 0:
         st.dataframe(df.head(rows))
 
 # Select columns to display
-if st.checkbox("Show dataset with selected columns"):
+# if st.checkbox("Show dataset with selected columns"):
+with st.beta_expander("Show dataset with selected columns"):
     # get the list of columns
     columns = df.columns.tolist()
     st.write("#### Select the columns to display:")
@@ -92,7 +100,8 @@ fps = 24
 
 object_classes = df["object_class"].value_counts().to_dict()
 
-if st.checkbox("Show Dataset statistics"):
+# if st.checkbox("Show Dataset statistics"):
+with st.beta_expander("Show Dataset statistics"):
     st.subheader("Dataset statistics")
     st.dataframe(df_stats)
 
@@ -109,6 +118,12 @@ with st.form("get section form"):
         "End period (seconds)", max_value=int(max_frame / fps), value=100,
     )
 
+    objects_to_display = st.multiselect(
+        "Chose objects to display",
+        list(object_classes.keys()),
+        list(object_classes.keys()),
+    )
+
     submitted = st.form_submit_button("Submit")
     if submitted:
 
@@ -116,7 +131,9 @@ with st.form("get section form"):
 
             with st.spinner("Analysing ...."):
 
-                session_state.df_section = select_section(start_period, end_period, fps)
+                session_state.df_section = select_section(
+                    start_period, end_period, fps, objects_to_display
+                )
 
                 with st.beta_expander(label="Selected data stats", expanded=False):
 
