@@ -68,6 +68,10 @@ while preview:
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     FRAME_WINDOW.image(frame)
 
+if st.button(f"Run video externally: {choice_video}"):
+    os.system(f"vlc {choice_video}")
+
+
 st.subheader(f"Running results for file {choice_csvs}")
 
 df = load_data(choice_csvs)
