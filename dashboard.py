@@ -17,8 +17,6 @@ from bokeh.transform import factor_cmap
 from streamlit_bokeh_events import streamlit_bokeh_events
 from bokeh.palettes import Spectral6
 
-import cv2
-
 
 @st.cache
 def load_data(file_name: str) -> pd.DataFrame:
@@ -28,7 +26,9 @@ def load_data(file_name: str) -> pd.DataFrame:
     df["global_id"] = df["object_id"].astype(str) + "_" + df["object_class"]
     # return reduce_mem_usage(df)
     to_drop = df["object_id"].value_counts()
-    to_drop = list(to_drop[to_drop < 6 * 24].keys())
+    to_drop = list(
+        to_drop[to_drop < 6 * 24].keys()
+    )  # get all objects with that appeard 6 seconds or more in the video
     df = df.query(f"object_id not in {to_drop}")
     df = df.sort_values("object_id").drop_duplicates(subset=["x", "y"], keep="last")
     df[["x", "y", "w", "h"]] = df[["x", "y", "w", "h"]].astype("int32")
